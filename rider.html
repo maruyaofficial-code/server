@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rider Dashboard</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#28a745">
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/service-worker.js').then(() => {
+      console.log('Service Worker Registered');
+    });
+  }
+</script>
+
+</head>
+<body>
+<div class="container">
+  <img src="icons/logo.png" alt="Rider Booking Logo" class="logo">
+  <h2>Rider Dashboard</h2>
+  <input type="text" id="riderName" placeholder="Enter Rider Name" required>
+  <button onclick="fetchOrders()">Refresh Orders</button>
+  <div class="orders" id="orders"></div>
+</div>
+
+  <script>
+    const API_URL = "https://server-one-inky-81.vercel.app/api/orders";
+    const socket = io("https://rider.b-cdn.net");
+    let currentOrderId = null;
+
+    async function fetchOrders() {
+      const response = await fetch(API_URL);
+      const orders = await response.json();
+
+      const ordersDiv = document.getElementById("orders");
+      ordersDiv.innerHTML = "";
+
+      orders.forEach(order => {
+        const div = document.createElement("div");
+        div.classList.add("order");
+        div.innerHTML = `
+          <p><strong>Customer:</strong> ${order.customerName}</p>
+          <p><strong>Pickup:</strong> ${order.pickupLocation}</p>
+          <p><strong>Drop-off:</strong> ${order.dropoffLocation}</p>
+          <p><strong>Status:</strong> ${order.status}</p>
+          ${order.status === "Pending" ? `<button onclick="acceptOrder('${order.id}')">Accept</button>` : ""}
+          ${order.status === "Accepted" ? `<button onclick="finishOrder('${order.id}')">Finish</button>` : ""}
+        `;
+        ordersDiv.appendChild(div);
+      });
+    }
+
+    async function acceptOrder(orderId) {
+      const riderName = document.getElementById("riderName").value.trim();
+      if (!riderName) return alert("Enter rider name first!");
+
+      const response = await fetch(`${API_URL}/${orderId}/accept`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ riderName })
+      });
+
+      const result = await response.json();
+      alert(result.message);
+      currentOrderId = orderId;
+
+      setInterval(sendRiderLocation, 5000);
+      fetchOrders();
+    }
+
+    async function sendRiderLocation() {
+      if (!currentOrderId) return;
+
+      navigator.geolocation.getCurrentPosition(async pos => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+
+        await fetch(`${API_URL}/${currentOrderId}/location`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ lat, lng })
+        });
+      });
+    }
+
+    async function finishOrder(orderId) {
+      const res = await fetch(`${API_URL}/${orderId}/finish`, { method: "POST" });
+      const result = await res.json();
+      alert(result.message);
+      fetchOrders();
+    }
+
+    window.onload = fetchOrders;
+  </script>
+</body>
+</html>

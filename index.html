@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rider Booking App</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    /* Global Layout */
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #28a745, #007bff);
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .container {
+      text-align: center;
+      background: #ffffff;
+      padding: 30px;
+      border-radius: 15px;
+      box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+      max-width: 400px;
+      width: 90%;
+    }
+
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 15px;
+      color: #333;
+    }
+
+    p {
+      font-size: 1rem;
+      color: #555;
+      margin-bottom: 20px;
+    }
+
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      background: #28a745;
+      color: #fff;
+      font-size: 1rem;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: 0.3s;
+      text-decoration: none;
+    }
+
+    .btn:hover {
+      background: #218838;
+    }
+
+    .btn-rider {
+      background: #007bff;
+    }
+
+    .btn-rider:hover {
+      background: #0056b3;
+    }
+    /* Logo Styling */
+.logo {
+  display: block;
+  margin: 0 auto 15px auto;
+  max-width: 150px;
+  height: auto;
+}
+
+
+    footer {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 0.9rem;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+ <div class="container">
+  <img src="icons/logo.png" alt="Logo" class="logo">
+  <h1>Rider Booking</h1>
+  <p>Choose your role to continue:</p>
+  <a href="customer.html" class="btn">I'm a Customer</a>
+  <a href="rider.html" class="btn btn-rider">I'm a Rider</a>
+  <a href="register.html" class="btn" style="background:#ffc107; color:#000;">Register</a>
+  <footer>
+    &copy; 2025 Rider Booking App. All rights reserved.
+  </footer>
+</div>
+
+
+</body>
+</html>

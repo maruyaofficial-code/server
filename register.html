@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .container {
+      max-width: 400px;
+      margin: auto;
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      text-align: center;
+    }
+    .logo {
+      max-width: 120px;
+      margin-bottom: 15px;
+    }
+    select {
+      width: 100%;
+      padding: 10px;
+      margin: 8px 0;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <img src="icons/logo.png" alt="Logo" class="logo">
+    <h2>Register</h2>
+    <form id="registerForm">
+      <input type="text" id="name" placeholder="Full Name" required>
+      <input type="text" id="phone" placeholder="Mobile Number" required>
+      <select id="role" required>
+        <option value="">Select Role</option>
+        <option value="customer">Customer</option>
+        <option value="rider">Rider</option>
+      </select>
+      <button type="submit">Register</button>
+    </form>
+    <div class="message" id="message"></div>
+    <p>Already registered? <a href="index.html">Login Here</a></p>
+  </div>
+
+  <script>
+    const API_URL = "http://localhost:4000/api/register";
+
+    document.getElementById("registerForm").addEventListener("submit", async function(e) {
+      e.preventDefault();
+
+      const userData = {
+        name: document.getElementById("name").value,
+        phone: document.getElementById("phone").value,
+        role: document.getElementById("role").value
+      };
+
+      const response = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(userData)
+      });
+
+      const result = await response.json();
+      document.getElementById("message").innerText = result.message;
+
+      if (response.ok) {
+        setTimeout(() => {
+          window.location.href = "index.html";
+        }, 2000);
+      }
+    });
+  </script>
+</body>
+</html>
