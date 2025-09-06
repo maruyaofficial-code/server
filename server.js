@@ -7,7 +7,6 @@ import { Server } from "socket.io";
 const app = express();
 const PORT = 4000;
 
-// Create HTTP + WebSocket server
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
@@ -19,51 +18,104 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static("public"));
 
+// In-memory storage
+let customers = [];
+let riders = [];
 let orders = [];
 
 /**
- * Create a new order
+ * REGISTER CUSTOMER OR RIDER
+ */
+app.post("/api/register", (req, res) => {
+  const { name, phone, role } = req.body;
+
+  if (!name || !phone || !role) {
+    return res.status(400).json({ message: "All fields are required." });
+  }
+
+  if (!["customer", "rider"].includes(role)) {
+    return res.status(400).json({ message: "Invalid role." });
+  }
+
+  // Check if phone already exists
+  const exists = [...customers, ...riders].find(user => user.phone === phone);
+  if (exists) {
+    return res.status(400).json({ message: "Phone number already registered." });
+  }
+
+  const newUser = {
+    id: Date.now(),
+    name,
+    phone,
+    role
+  };
+
+  if (role === "customer") {
+    customers.push(newUser);
+  } else {
+    riders.push(newUser);
+  }
+
+  res.json({ message: "Registration successful!", user: newUser });
+});
+
+/**
+ * LOGIN
+ */
+app.post("/api/login", (req, res) => {
+  const { phone, role } = req.body;
+
+  if (!phone || !role) {
+    return res.status(400).json({ message: "Phone and role are required." });
+  }
+
+  const user =
+    role === "customer"
+      ? customers.find(c => c.phone === phone)
+      : riders.find(r => r.phone === phone);
+
+  if (!user) {
+    return res.status(404).json({ message: "User not found. Please register first." });
+  }
+
+  res.json({ message: "Login successful!", user });
+});
+
+/**
+ * Place Order (Customer only)
  */
 app.post("/api/orders", (req, res) => {
   const {
-    customerName,
+    customerId,
     pickupLocation,
     dropoffLocation,
     itemDescription,
-    contactNumber,
-    pickupLat,
-    pickupLng,
-    dropoffLat,
-    dropoffLng,
+    contactNumber
   } = req.body;
 
-  if (!customerName || !pickupLocation || !dropoffLocation || !itemDescription || !contactNumber) {
+  if (!customerId || !pickupLocation || !dropoffLocation || !itemDescription || !contactNumber) {
     return res.status(400).json({ message: "All fields are required" });
   }
 
   const newOrder = {
     id: Date.now(),
-    customerName,
+    customerId,
     pickupLocation,
     dropoffLocation,
     itemDescription,
     contactNumber,
     status: "Pending",
     rider: null,
-    pickupLat,
-    pickupLng,
-    dropoffLat,
-    dropoffLng,
   };
 
   orders.push(newOrder);
-
   io.emit("orderCreated", newOrder);
+
   res.json({ message: "Order placed successfully!", order: newOrder });
 });
 
 /**
- * Get all orders
+ * Get Orders
  */
 app.get("/api/orders", (req, res) => {
   res.json(orders);
@@ -74,7 +126,7 @@ app.get("/api/orders", (req, res) => {
  */
 app.post("/api/orders/:id/accept", (req, res) => {
   const { id } = req.params;
-  const { riderName } = req.body;
+  const { riderId } = req.body;
 
   const order = orders.find(o => o.id === Number(id));
   if (!order) return res.status(404).json({ message: "Order not found!" });
@@ -83,32 +135,18 @@ app.post("/api/orders/:id/accept", (req, res) => {
     return res.status(400).json({ message: "Order already accepted or completed." });
   }
 
+  const rider = riders.find(r => r.id === riderId);
+  if (!rider) return res.status(404).json({ message: "Rider not found!" });
+
   order.status = "Accepted";
-  order.rider = riderName;
+  order.rider = rider;
 
   io.emit("orderUpdated", order);
-  res.json({ message: `Order accepted by ${riderName}`, order });
+  res.json({ message: `Order accepted by ${rider.name}`, order });
 });
 
 /**
- * Rider updates location
- */
-app.post("/api/orders/:id/location", (req, res) => {
-  const { id } = req.params;
-  const { lat, lng } = req.body;
-
-  const order = orders.find(o => o.id === Number(id));
-  if (!order) return res.status(404).json({ message: "Order not found" });
-
-  order.riderLat = lat;
-  order.riderLng = lng;
-
-  io.emit("riderLocationUpdated", { id: order.id, lat, lng });
-  res.json({ message: "Location updated successfully!" });
-});
-
-/**
- * Cancel an order
+ * Cancel Order (Customer)
  */
 app.post("/api/orders/:id/cancel", (req, res) => {
   const { id } = req.params;
@@ -116,18 +154,14 @@ app.post("/api/orders/:id/cancel", (req, res) => {
   const order = orders.find(o => o.id === Number(id));
   if (!order) return res.status(404).json({ message: "Order not found!" });
 
-  if (order.status === "Completed") {
-    return res.status(400).json({ message: "Cannot cancel a completed order." });
-  }
-
   order.status = "Cancelled";
-
   io.emit("orderUpdated", order);
-  res.json({ message: "Order has been cancelled", order });
+
+  res.json({ message: "Order cancelled successfully!", order });
 });
 
 /**
- * Finish an order
+ * Finish Order (Rider)
  */
 app.post("/api/orders/:id/finish", (req, res) => {
   const { id } = req.params;
@@ -135,16 +169,12 @@ app.post("/api/orders/:id/finish", (req, res) => {
   const order = orders.find(o => o.id === Number(id));
   if (!order) return res.status(404).json({ message: "Order not found!" });
 
-  if (order.status !== "Accepted") {
-    return res.status(400).json({ message: "Only accepted orders can be finished." });
-  }
-
   order.status = "Completed";
-
   io.emit("orderUpdated", order);
-  res.json({ message: "Order marked as completed", order });
+
+  res.json({ message: "Order marked as completed!", order });
 });
 
 httpServer.listen(PORT, () => {
-  console.log(`✅ Server running at http://localhost:${PORT}`);
+  console.log(`✅ Server running on http://localhost:${PORT}`);
 });
