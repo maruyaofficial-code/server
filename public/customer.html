@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Customer Dashboard</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#28a745">
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/service-worker.js').then(() => {
+      console.log('Service Worker Registered');
+    });
+  }
+</script>
+
+</head>
+<body>
+  <div class="container">
+      <img src="icons/logo.png" alt="Rider Booking Logo" class="logo">
+    <h2>Place an Order</h2>
+    <form id="orderForm">
+      <input type="text" id="customerName" placeholder="Your Name" required>
+      <input type="text" id="pickupLocation" placeholder="Pickup Address" required>
+      <input type="text" id="dropoffLocation" placeholder="Drop-off Address" required>
+      <textarea id="itemDescription" placeholder="Item Description" required></textarea>
+      <input type="text" id="contactNumber" placeholder="Contact Number" required>
+      <button type="submit">Submit Order</button>
+    </form>
+    <div class="message" id="message"></div>
+
+    <h3>My Orders</h3>
+    <div class="orders" id="customerOrders"></div>
+
+    <div id="map"></div>
+  </div>
+
+  <script>
+    const API_URL = "https://server-one-inky-81.vercel.app/api/orders";
+    const socket = io("https://rider.b-cdn.net");
+
+    let map = L.map('map').setView([7.1907, 125.4553], 7);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+    let riderMarker;
+
+    document.getElementById("orderForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const orderData = {
+        customerName: document.getElementById("customerName").value,
+        pickupLocation: document.getElementById("pickupLocation").value,
+        dropoffLocation: document.getElementById("dropoffLocation").value,
+        itemDescription: document.getElementById("itemDescription").value,
+        contactNumber: document.getElementById("contactNumber").value
+      };
+
+      const response = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(orderData)
+      });
+
+      const result = await response.json();
+      document.getElementById("message").innerText = result.message;
+      fetchOrders();
+    });
+
+    async function fetchOrders() {
+      const res = await fetch(API_URL);
+      const data = await res.json();
+
+      const ordersDiv = document.getElementById("customerOrders");
+      ordersDiv.innerHTML = "";
+
+      data.forEach(order => {
+        const div = document.createElement("div");
+        div.classList.add("order");
+        div.innerHTML = `
+          <p><strong>ID:</strong> ${order.id}</p>
+          <p><strong>Pickup:</strong> ${order.pickupLocation}</p>
+          <p><strong>Drop-off:</strong> ${order.dropoffLocation}</p>
+          <p><strong>Status:</strong> ${order.status}</p>
+          ${order.status === "Pending" || order.status === "Accepted" ? `
+            <button onclick="cancelOrder('${order.id}')">Cancel</button>
+          ` : ""}
+        `;
+        ordersDiv.appendChild(div);
+      });
+    }
+
+    async function cancelOrder(orderId) {
+      if (!confirm("Are you sure you want to cancel this order?")) return;
+
+      const res = await fetch(`${API_URL}/${orderId}/cancel`, {
+        method: "POST"
+      });
+
+      const result = await res.json();
+      alert(result.message);
+      fetchOrders();
+    }
+
+    socket.on("riderLocationUpdated", data => {
+      if (!riderMarker) {
+        riderMarker = L.marker([data.lat, data.lng]).addTo(map).bindPopup("Rider Location");
+      } else {
+        riderMarker.setLatLng([data.lat, data.lng]);
+      }
+    });
+
+    window.onload = fetchOrders;
+  </script>
+</body>
+</html>
